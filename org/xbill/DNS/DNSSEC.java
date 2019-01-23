@@ -775,42 +775,67 @@ ECGOSTSignaturefromDNS(byte [] signature, ECKeyInfo keyinfo)
 	return signature;
 }
 
-private static byte []
-ECDSASignaturefromDNS(byte [] signature, ECKeyInfo keyinfo)
-	throws DNSSECException, IOException
+
+/**
+ * Convert a DNS standard ECDSA signature (defined in RFC 6605) into a
+ * JCE standard ECDSA signature, which is encoded in ASN.1.
+ * 
+ * The format of the ASN.1 signature is
+ * 
+ * ASN1_SEQ . seq_length . ASN1_INT . r_length . R . ANS1_INT . s_length . S
+ * 
+ * where R and S may have a leading zero byte if without it the values would
+ * be negative.
+ *
+ * The format of the DNSSEC signature is just R . S where R and S are both
+ * exactly "length" bytes.
+ * 
+ * @param signature
+ *          The binary signature data from an RRSIG record.
+ * @return signature data that may be used in a JCE Signature object for
+ *         verification purposes.
+ */
+public static byte[] convertECDSASignature(byte[] signature)
 {
-	if (signature.length != keyinfo.length * 2)
-		throw new SignatureVerificationException();
+  byte r_src_pos, r_src_len, r_pad, s_src_pos, s_src_len, s_pad, len;
 
-	DNSInput in = new DNSInput(signature);
-	DNSOutput out = new DNSOutput();
+  r_src_len = s_src_len = (byte) (signature.length / 2);
+  r_src_pos = 0; r_pad = 0;
+  s_src_pos = (byte) (r_src_pos + r_src_len); s_pad = 0;
+  len = (byte) (6 + r_src_len + s_src_len);
 
-	byte [] r = in.readByteArray(keyinfo.length);
-	int rlen = keyinfo.length;
-	if (r[0] < 0)
-		rlen++;
+  // leading zeroes are forbidden
+  if (signature[r_src_pos] == 0) {
+     r_src_pos++; r_src_len--; len--;
+  }
+  if (signature[s_src_pos] == 0) {
+     s_src_pos++; s_src_len--; len--;
+  }
 
-	byte [] s = in.readByteArray(keyinfo.length);
-	int slen = keyinfo.length;
-	if (s[0] < 0)
-		slen++;
+  // except when they are mandatory
+  if (signature[r_src_pos] < 0) {
+      r_pad = 1; len++;
+  }
+  if (signature[s_src_pos] < 0) {
+    s_pad = 1; len++;
+  }
+  byte[] sig = new byte[len];
+  byte pos = 0;
 
-	out.writeU8(ASN1_SEQ);
-	out.writeU8(rlen + slen + 4);
+  sig[pos++] = ASN1_SEQ;
+  sig[pos++] = (byte) (len - 2);
+  sig[pos++] = ASN1_INT;
+  sig[pos++] = (byte) (r_src_len + r_pad);
+  pos += r_pad;
+  System.arraycopy(signature, r_src_pos, sig, pos, r_src_len);
+  pos += r_src_len;
 
-	out.writeU8(ASN1_INT);
-	out.writeU8(rlen);
-	if (rlen > keyinfo.length)
-		out.writeU8(0);
-	out.writeByteArray(r);
+  sig[pos++] = ASN1_INT;
+  sig[pos++] = (byte) (s_src_len + s_pad);
+  pos += s_pad;
+  System.arraycopy(signature, s_src_pos, sig, pos, s_src_len);
 
-	out.writeU8(ASN1_INT);
-	out.writeU8(slen);
-	if (slen > keyinfo.length)
-		out.writeU8(0);
-	out.writeByteArray(s);
-
-	return out.toByteArray();
+  return sig;
 }
 
 private static byte []
@@ -869,13 +894,10 @@ throws DNSSECException
 								   GOST);
 				break;
 			case Algorithm.ECDSAP256SHA256:
-				signature = ECDSASignaturefromDNS(signature,
-								  ECDSA_P256);
-				break;
 			case Algorithm.ECDSAP384SHA384:
-				signature = ECDSASignaturefromDNS(signature,
-								  ECDSA_P384);
+				signature = convertECDSASignature(signature);
 				break;
+
 			default:
 				throw new UnsupportedAlgorithmException(alg);
 			}
