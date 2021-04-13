@@ -61,6 +61,9 @@ public abstract class EDNSOption {
     /** Signaling Trust Anchor Knowledge in DNS Security Extensions (DNSSEC), RFC 8145 */
     public static final int EDNS_KEY_TAG = 14;
 
+    /** Extended DNS Errors, RFC 8914 */
+    public static final int EDE = 15;
+
     /** DNS EDNS Tags, draft-bellis-dnsop-edns-tags-01 */
     public static final int EDNS_CLIENT_TAG = 16;
 
@@ -88,7 +91,7 @@ public abstract class EDNSOption {
       codes.add(PADDING, "Padding");
       codes.add(CHAIN, "CHAIN");
       codes.add(EDNS_KEY_TAG, "edns-key-tag");
-
+      codes.add(EDE, "EDE");
       codes.add(EDNS_CLIENT_TAG, "EDNS-Client-Tag");
       codes.add(EDNS_SERVER_TAG, "EDNS-Server-Tag");
     }
@@ -172,6 +175,9 @@ public abstract class EDNSOption {
         break;
       case Code.CLIENT_SUBNET:
         option = new ClientSubnetOption();
+        break;
+      case Code.EDE:
+        option = new EDEOption();
         break;
       case Code.DAU:
       case Code.DHU:
