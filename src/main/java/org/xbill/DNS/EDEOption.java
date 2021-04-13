@@ -8,13 +8,13 @@ import java.util.HashMap;
 import java.io.IOException;
 
 /**
- * The Name Server Identifier Option
+ * The Extended DNS Error Option
  *
  * @see OPTRecord
  * @author Brian Wellington
  * @author Oli Schacher
  * @see <a href="https://tools.ietf.org/html/rfc8914">RFC 8914: Extended DNS Errors (EDE)
- *     Option</a>
+ *     </a>
  */
 public class EDEOption extends EDNSOption {
 
